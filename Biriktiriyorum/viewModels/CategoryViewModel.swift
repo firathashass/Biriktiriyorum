@@ -28,4 +28,9 @@ class CategoryViewModel: ObservableObject {
     func removeCategory(at offsets: IndexSet) {
         categories.remove(atOffsets: offsets)
     }
+    
+    func updateCategory(_ category: Category, newName: String) {
+        guard let index = categories.firstIndex(of: category) else { return }
+        categories[index] = Category(name: newName)
+    }
 }

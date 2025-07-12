@@ -13,7 +13,10 @@ struct CategoryView: View {
     @State private var isAddingCategory = false
     @State private var showingDeleteAlert = false
     @State private var categoryToDelete: Category?
+    @State private var editingCategory: Category?
+    @State private var editingText = ""
     @FocusState private var isTextFieldFocused: Bool
+    @FocusState private var isEditingTextFieldFocused: Bool
     
     var body: some View {
         NavigationView {
@@ -27,7 +30,7 @@ struct CategoryView: View {
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Header with stats
+                    // Header section
                     headerSection
                     
                     // Categories list
@@ -44,12 +47,9 @@ struct CategoryView: View {
                     Button(action: {
                         withAnimation(.spring()) {
                             isAddingCategory.toggle()
-                            if isAddingCategory {
-                                isTextFieldFocused = true
-                            }
                         }
                     }) {
-                        Image(systemName: isAddingCategory ? "minus.circle.fill" : "plus.circle.fill")
+                        Image(systemName: "plus.circle.fill")
                             .font(.title2)
                             .foregroundColor(.accentColor)
                     }
@@ -60,7 +60,7 @@ struct CategoryView: View {
                 Button("Delete", role: .destructive) {
                     if let category = categoryToDelete,
                        let index = categoryVM.categories.firstIndex(of: category) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
+                        withAnimation(.spring()) {
                             categoryVM.removeCategory(at: IndexSet(integer: index))
                         }
                     }
@@ -78,23 +78,16 @@ struct CategoryView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(categoryVM.categories.count)")
                         .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.accentColor)
                     Text("Total Categories")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
                 Spacer()
                 
-                // Category icon
-                ZStack {
-                    Circle()
-                        .fill(Color.accentColor.opacity(0.1))
-                        .frame(width: 60, height: 60)
-                    
-                    Image(systemName: "folder.fill")
-                        .font(.title2)
-                        .foregroundColor(.accentColor)
-                }
+                Image(systemName: "folder.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.accentColor.opacity(0.3))
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
@@ -108,16 +101,31 @@ struct CategoryView: View {
     private var categoriesList: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                ForEach(categoryVM.categories) { category in
-                    CategoryRowView(category: category) {
-                        categoryToDelete = category
-                        showingDeleteAlert = true
-                    }
+                ForEach(Array(categoryVM.categories.enumerated()), id: \.element.id) { index, category in
+                    CategoryRowView(
+                        category: category,
+                        index: index,
+                        isEditing: editingCategory?.id == category.id,
+                        editingText: $editingText,
+                        onDelete: {
+                            categoryToDelete = category
+                            showingDeleteAlert = true
+                        },
+                        onEdit: {
+                            startEditing(category)
+                        },
+                        onSave: {
+                            saveEdit()
+                        },
+                        onCancel: {
+                            cancelEdit()
+                        }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .scale.combined(with: .opacity),
+                        removal: .scale.combined(with: .opacity)
+                    ))
                 }
-                .transition(.asymmetric(
-                    insertion: .scale.combined(with: .opacity),
-                    removal: .scale.combined(with: .opacity)
-                ))
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
@@ -128,45 +136,123 @@ struct CategoryView: View {
     // MARK: - Add Category Section
     private var addCategorySection: some View {
         VStack(spacing: 0) {
-            if isAddingCategory {
-                VStack(spacing: 16) {
-                    Divider()
-                        .padding(.horizontal, 20)
-                    
-                    HStack(spacing: 12) {
-                        TextField("Enter category name", text: $newCategoryName)
-                            .textFieldStyle(CustomTextFieldStyle())
-                            .focused($isTextFieldFocused)
-                            .onSubmit {
-                                addCategory()
-                            }
-                        
-                        Button(action: addCategory) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.accentColor)
-                        }
-                        .disabled(newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                    .padding(.horizontal, 20)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            Divider()
+                .padding(.horizontal, 20)
+            
+            VStack(spacing: 16) {
+                if isAddingCategory {
+                    addCategoryForm
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .padding(.bottom, 20)
+                
+                HStack {
+                    if !isAddingCategory {
+                        Button(action: {
+                            withAnimation(.spring()) {
+                                isAddingCategory = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    isTextFieldFocused = true
+                                }
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Add New Category")
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [.accentColor, .accentColor.opacity(0.8)]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(12)
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+            .padding(.vertical, 20)
+            .background(Color(.systemBackground))
+        }
+    }
+    
+    // MARK: - Add Category Form
+    private var addCategoryForm: some View {
+        VStack(spacing: 12) {
+            HStack {
+                TextField("Category name", text: $newCategoryName)
+                    .textFieldStyle(CustomTextFieldStyle())
+                    .focused($isTextFieldFocused)
+                    .onSubmit {
+                        addCategory()
+                    }
+                
+                Button(action: addCategory) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(newCategoryName.isEmpty ? .gray : .green)
+                }
+                .disabled(newCategoryName.isEmpty)
+                
+                Button(action: {
+                    withAnimation(.spring()) {
+                        isAddingCategory = false
+                        newCategoryName = ""
+                        isTextFieldFocused = false
+                    }
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.red)
+                }
             }
         }
-        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: isAddingCategory)
+        .padding(.horizontal, 20)
     }
     
     // MARK: - Helper Methods
     private func addCategory() {
-        let trimmedName = newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else { return }
+        guard !newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-            categoryVM.addCategory(name: trimmedName)
+        withAnimation(.spring()) {
+            categoryVM.addCategory(name: newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines))
             newCategoryName = ""
             isAddingCategory = false
             isTextFieldFocused = false
+        }
+    }
+    
+    private func startEditing(_ category: Category) {
+        editingCategory = category
+        editingText = category.name
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isEditingTextFieldFocused = true
+        }
+    }
+    
+    private func saveEdit() {
+        guard let category = editingCategory,
+              !editingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        
+        withAnimation(.spring()) {
+            categoryVM.updateCategory(category, newName: editingText.trimmingCharacters(in: .whitespacesAndNewlines))
+            editingCategory = nil
+            editingText = ""
+            isEditingTextFieldFocused = false
+        }
+    }
+    
+    private func cancelEdit() {
+        withAnimation(.spring()) {
+            editingCategory = nil
+            editingText = ""
+            isEditingTextFieldFocused = false
         }
     }
 }
@@ -174,41 +260,110 @@ struct CategoryView: View {
 // MARK: - Category Row View
 struct CategoryRowView: View {
     let category: Category
+    let index: Int
+    let isEditing: Bool
+    @Binding var editingText: String
     let onDelete: () -> Void
+    let onEdit: () -> Void
+    let onSave: () -> Void
+    let onCancel: () -> Void
+    
+    @State private var isPressed = false
+    @FocusState private var isTextFieldFocused: Bool
     
     var body: some View {
         HStack(spacing: 16) {
-            // Category icon
+            // Category icon with gradient background
             ZStack {
                 Circle()
-                    .fill(Color.accentColor.opacity(0.1))
-                    .frame(width: 44, height: 44)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.accentColor.opacity(0.2),
+                                Color.accentColor.opacity(0.1)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 50, height: 50)
                 
-                Image(systemName: "folder")
-                    .font(.title3)
-                    .foregroundColor(.accentColor)
+                if isEditing {
+                    Text(String(editingText.prefix(1)).uppercased())
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.accentColor)
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    Text(String(category.name.prefix(1)).uppercased())
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.accentColor)
+                        .transition(.scale.combined(with: .opacity))
+                }
             }
             
-            // Category name
-            Text(category.name)
-                .font(.body)
-                .fontWeight(.medium)
-                .foregroundColor(.primary)
+            // Category name or editing field
+            VStack(alignment: .leading, spacing: 4) {
+                if isEditing {
+                    TextField("Category name", text: $editingText)
+                        .textFieldStyle(InlineTextFieldStyle())
+                        .focused($isTextFieldFocused)
+                        .onSubmit {
+                            onSave()
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .leading)))
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(category.name)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text("Category \(index + 1)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .leading)))
+                }
+            }
             
             Spacer()
             
-            // Delete button
-            Button(action: onDelete) {
-                Image(systemName: "trash")
-                    .font(.subheadline)
-                    .foregroundColor(.red)
-                    .padding(8)
-                    .background(
-                        Circle()
-                            .fill(Color.red.opacity(0.1))
-                    )
+            // Action buttons
+            if isEditing {
+                HStack(spacing: 8) {
+                    Button(action: onSave) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(editingText.isEmpty ? .gray : .green)
+                    }
+                    .disabled(editingText.isEmpty)
+                    
+                    Button(action: onCancel) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.red)
+                    }
+                }
+                .transition(.scale.combined(with: .opacity))
+            } else {
+                HStack(spacing: 8) {
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.blue.opacity(0.7))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    
+                    Button(action: onDelete) {
+                        Image(systemName: "trash.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.red.opacity(0.7))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                .transition(.scale.combined(with: .opacity))
             }
-            .buttonStyle(PlainButtonStyle())
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -217,6 +372,20 @@ struct CategoryRowView: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         )
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: isPressed)
+        .onTapGesture {
+            if !isEditing {
+                withAnimation(.easeInOut(duration: 0.1)) {
+                    isPressed = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        isPressed = false
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -227,18 +396,35 @@ struct CustomTextFieldStyle: TextFieldStyle {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 10)
                     .fill(Color(.systemGray6))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: 10)
                             .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
                     )
             )
-            .font(.body)
     }
 }
 
-// MARK: - Preview
+// MARK: - Inline Text Field Style
+struct InlineTextFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .font(.headline)
+            .foregroundColor(.primary)
+            .padding(.vertical, 4)
+            .padding(.horizontal, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.accentColor.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                    )
+            )
+    }
+}
+
 #Preview {
     CategoryView()
         .environmentObject(CategoryViewModel())
