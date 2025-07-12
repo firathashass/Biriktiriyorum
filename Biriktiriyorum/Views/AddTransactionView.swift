@@ -174,14 +174,13 @@ struct AddTransactionView: View {
                             .fill(Color(.systemGray6))
                     )
             } else {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
-                    ForEach(categoryVM.categories) { category in
-                        CategoryCard(
-                            category: category,
-                            isSelected: selectedCategory?.id == category.id
-                        ) {
-                            selectedCategory = category
-                        }
+                LazyVStack(spacing: 16) {
+                    ForEach(categoryVM.getAllGroups(), id: \.self) { group in
+                        CategoryGroupSection(
+                            group: group,
+                            categories: categoryVM.getCategoriesInGroup(group),
+                            selectedCategory: $selectedCategory
+                        )
                     }
                 }
             }
@@ -459,6 +458,94 @@ struct EmotionCard: View {
             .background(isSelected ? Color.pink : Color(.systemGray6))
             .cornerRadius(12)
         }
+    }
+}
+
+// MARK: - Category Group Section Component
+struct CategoryGroupSection: View {
+    let group: String
+    let categories: [Category]
+    @Binding var selectedCategory: Category?
+    
+    private var groupColor: Color {
+        switch group {
+        case "Essentials":
+            return .red
+        case "Lifestyle":
+            return .blue
+        case "Savings":
+            return .green
+        default:
+            return .purple
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Group Header
+            HStack {
+                ZStack {
+                    Circle()
+                        .fill(groupColor.opacity(0.2))
+                        .frame(width: 32, height: 32)
+                    
+                    Image(systemName: "folder.fill")
+                        .font(.caption)
+                        .foregroundColor(groupColor)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(group)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    
+                    Text("\(categories.count) categories")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                // Group budget summary
+                let groupBudget = getGroupBudget()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("₺\(String(format: "%.0f", groupBudget.remaining))")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(groupBudget.remaining > 0 ? .green : .red)
+                    
+                    Text("remaining")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemGray6))
+            )
+            
+            // Categories Grid
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                ForEach(categories) { category in
+                    CategoryCard(
+                        category: category,
+                        isSelected: selectedCategory?.id == category.id
+                    ) {
+                        selectedCategory = category
+                    }
+                }
+            }
+        }
+    }
+    
+    private func getGroupBudget() -> (assigned: Double, remaining: Double, spent: Double) {
+        let assigned = categories.reduce(0) { $0 + $1.assignedBudget }
+        let remaining = categories.reduce(0) { $0 + $1.remainingBalance }
+        let spent = assigned - remaining
+        return (assigned, remaining, spent)
     }
 }
 

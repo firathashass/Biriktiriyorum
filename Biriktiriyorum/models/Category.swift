@@ -12,10 +12,12 @@ struct Category: Identifiable, Hashable, Codable {
     let name: String
     var assignedBudget: Double
     var remainingBalance: Double
+    var group: String
     
-    init(name: String, assignedBudget: Double = 0.0, remainingBalance: Double = 0.0) {
+    init(name: String, assignedBudget: Double = 0.0, remainingBalance: Double = 0.0, group: String = "Other") {
         self.name = name
         self.assignedBudget = assignedBudget
         self.remainingBalance = remainingBalance
+        self.group = group
     }
 }

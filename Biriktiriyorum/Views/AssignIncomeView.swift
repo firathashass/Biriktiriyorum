@@ -15,6 +15,12 @@ struct AssignIncomeView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var showSuccessMessage = false
+    @State private var expandedGroups: Set<String> = Set()
+    
+    // Initialize with all groups expanded by default
+    private var initialExpandedGroups: Set<String> {
+        Set(categoryVM.getAllGroups())
+    }
     
     var body: some View {
         NavigationView {
@@ -41,8 +47,8 @@ struct AssignIncomeView: View {
                         // Unassigned Amount Section
                         unassignedSection
                         
-                        // Category Assignments Section
-                        categoryAssignmentsSection
+                        // Group Assignments Section
+                        groupAssignmentsSection
                         
                         // Distribute Button
                         distributeButton
@@ -68,6 +74,10 @@ struct AssignIncomeView: View {
         }
         .onTapGesture {
             hideKeyboard()
+        }
+        .onAppear {
+            // Expand all groups by default
+            expandedGroups = Set(categoryVM.getAllGroups())
         }
     }
     
@@ -161,24 +171,32 @@ struct AssignIncomeView: View {
         )
     }
     
-    // MARK: - Category Assignments Section
-    private var categoryAssignmentsSection: some View {
+    // MARK: - Group Assignments Section
+    private var groupAssignmentsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "folder.circle.fill")
                     .foregroundColor(.blue)
-                Text("Category Assignments")
+                Text("Category Groups")
                     .font(.headline)
                     .fontWeight(.semibold)
             }
             
             LazyVStack(spacing: 12) {
-                ForEach(categoryVM.categories) { category in
-                    CategoryAssignmentRow(
-                        category: category,
-                        assignment: categoryAssignments[category.name] ?? "",
-                        onAssignmentChange: { newValue in
-                            categoryAssignments[category.name] = newValue
+                ForEach(categoryVM.getAllGroups(), id: \.self) { group in
+                    GroupAssignmentSection(
+                        group: group,
+                        categories: categoryVM.getCategoriesInGroup(group),
+                        categoryAssignments: $categoryAssignments,
+                        isExpanded: expandedGroups.contains(group),
+                        onToggleExpanded: {
+                            if expandedGroups.contains(group) {
+                                expandedGroups.remove(group)
+                            } else {
+                                expandedGroups.insert(group)
+                            }
+                        },
+                        onAssignmentChange: { _ in
                             validateAssignments()
                         }
                     )
@@ -277,6 +295,99 @@ struct AssignIncomeView: View {
     
     private func hideKeyboard() {
         UIApplication.shared.endEditing()
+    }
+}
+
+// MARK: - Group Assignment Section Component
+struct GroupAssignmentSection: View {
+    let group: String
+    let categories: [Category]
+    @Binding var categoryAssignments: [String: String]
+    let isExpanded: Bool
+    let onToggleExpanded: () -> Void
+    let onAssignmentChange: (String) -> Void
+    
+    private var groupTotalAssigned: Double {
+        return categories.compactMap { category in
+            Double(categoryAssignments[category.name] ?? "0")
+        }.reduce(0, +)
+    }
+    
+    private var groupColor: Color {
+        switch group {
+        case "Essentials":
+            return .red
+        case "Lifestyle":
+            return .blue
+        case "Savings":
+            return .green
+        default:
+            return .orange
+        }
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Group Header
+            Button(action: onToggleExpanded) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Image(systemName: "folder.fill")
+                                .foregroundColor(groupColor)
+                            Text(group)
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                        }
+                        
+                        HStack {
+                            Text("₺\(String(format: "%.2f", groupTotalAssigned)) assigned")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Text("•")
+                                .foregroundColor(.secondary)
+                            
+                            Text("\(categories.count) categories")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray6))
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            // Categories (if expanded)
+            if isExpanded {
+                VStack(spacing: 8) {
+                    ForEach(categories) { category in
+                        CategoryAssignmentRow(
+                            category: category,
+                            assignment: categoryAssignments[category.name] ?? "",
+                            onAssignmentChange: { newValue in
+                                categoryAssignments[category.name] = newValue
+                                onAssignmentChange(newValue)
+                            }
+                        )
+                    }
+                }
+                .padding(.leading, 16)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: isExpanded)
     }
 }
 
