@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Transaction: Identifiable {
+struct Transaction: Identifiable, Codable {
     let id = UUID()
     let amount: Double
     let category: String
@@ -16,7 +16,7 @@ struct Transaction: Identifiable {
     let date: Date
 }
 
-enum EmotionTag: String, CaseIterable, Identifiable {
+enum EmotionTag: String, CaseIterable, Identifiable, Codable {
     case joyful = "😊 Joyful"
     case regretful = "😔 Regretful"
     case impulsive = "⚡️ Impulsive"

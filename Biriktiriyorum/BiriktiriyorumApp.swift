@@ -10,11 +10,13 @@ import SwiftUI
 @main
 struct BiriktiriyorumApp: App {
     @StateObject var transactionVM = TransactionViewModel()
+    @StateObject var categoryVM = CategoryViewModel()
 
     var body: some Scene {
         WindowGroup {
             MainTabView()
-                .environmentObject(transactionVM) // Share the ViewModel
+                .environmentObject(transactionVM)
+                .environmentObject(categoryVM)
         }
     }
 }
