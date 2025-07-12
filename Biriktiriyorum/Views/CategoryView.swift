@@ -15,6 +15,7 @@ struct CategoryView: View {
     @State private var categoryToDelete: Category?
     @State private var editingCategory: Category?
     @State private var editingText = ""
+    @State private var showingTransferView = false
     @FocusState private var isTextFieldFocused: Bool
     @FocusState private var isEditingTextFieldFocused: Bool
     
@@ -43,6 +44,16 @@ struct CategoryView: View {
             .navigationTitle("Categories")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showingTransferView = true
+                    }) {
+                        Image(systemName: "arrow.left.arrow.right.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.accentColor)
+                    }
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         withAnimation(.spring()) {
@@ -54,6 +65,10 @@ struct CategoryView: View {
                             .foregroundColor(.accentColor)
                     }
                 }
+            }
+            .sheet(isPresented: $showingTransferView) {
+                TransferView()
+                    .environmentObject(categoryVM)
             }
             .alert("Delete Category", isPresented: $showingDeleteAlert) {
                 Button("Cancel", role: .cancel) { }
@@ -92,9 +107,53 @@ struct CategoryView: View {
             .padding(.horizontal, 20)
             .padding(.top, 10)
             
+            // Budget Summary Section
+            budgetSummarySection
+            
             Divider()
                 .padding(.horizontal, 20)
         }
+    }
+    
+    // MARK: - Budget Summary Section
+    private var budgetSummarySection: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "chart.pie.fill")
+                    .foregroundColor(.green)
+                Text("Budget Overview")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+            }
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                // Total Assigned
+                BudgetSummaryCard(
+                    title: "Assigned",
+                    amount: totalAssignedBudget,
+                    color: .blue,
+                    icon: "dollarsign.circle.fill"
+                )
+                
+                // Total Remaining
+                BudgetSummaryCard(
+                    title: "Remaining",
+                    amount: totalRemainingBudget,
+                    color: totalRemainingBudget >= 0 ? .green : .red,
+                    icon: "creditcard.fill"
+                )
+                
+                // Total Spent
+                BudgetSummaryCard(
+                    title: "Spent",
+                    amount: totalSpent,
+                    color: .orange,
+                    icon: "cart.fill"
+                )
+            }
+        }
+        .padding(.horizontal, 20)
     }
     
     // MARK: - Categories List
@@ -119,6 +178,9 @@ struct CategoryView: View {
                         },
                         onCancel: {
                             cancelEdit()
+                        },
+                        onTransfer: {
+                            showingTransferView = true
                         }
                     )
                     .transition(.asymmetric(
@@ -255,6 +317,19 @@ struct CategoryView: View {
             isEditingTextFieldFocused = false
         }
     }
+    
+    // MARK: - Computed Properties
+    private var totalAssignedBudget: Double {
+        return categoryVM.categories.reduce(0) { $0 + $1.assignedBudget }
+    }
+    
+    private var totalRemainingBudget: Double {
+        return categoryVM.categories.reduce(0) { $0 + $1.remainingBalance }
+    }
+    
+    private var totalSpent: Double {
+        return categoryVM.categories.reduce(0) { $0 + ($1.assignedBudget - $1.remainingBalance) }
+    }
 }
 
 // MARK: - Category Row View
@@ -267,6 +342,7 @@ struct CategoryRowView: View {
     let onEdit: () -> Void
     let onSave: () -> Void
     let onCancel: () -> Void
+    let onTransfer: () -> Void
     
     @State private var isPressed = false
     @FocusState private var isTextFieldFocused: Bool
@@ -319,9 +395,26 @@ struct CategoryRowView: View {
                             .font(.headline)
                             .foregroundColor(.primary)
                         
-                        Text("Category \(index + 1)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        // Budget information
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack {
+                                Text("Assigned: ₺\(String(format: "%.0f", category.assignedBudget))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                Text("•")
+                                    .foregroundColor(.secondary)
+                                
+                                Text("Remaining: ₺\(String(format: "%.0f", category.remainingBalance))")
+                                    .font(.caption)
+                                    .foregroundColor(category.remainingBalance > 0 ? .green : .red)
+                            }
+                            
+                            // Progress bar
+                            ProgressView(value: category.assignedBudget > 0 ? (category.assignedBudget - category.remainingBalance) / category.assignedBudget : 0)
+                                .progressViewStyle(LinearProgressViewStyle(tint: category.remainingBalance > 0 ? .green : .red))
+                                .scaleEffect(y: 0.5)
+                        }
                     }
                     .transition(.opacity.combined(with: .move(edge: .leading)))
                 }
@@ -348,6 +441,14 @@ struct CategoryRowView: View {
                 .transition(.scale.combined(with: .opacity))
             } else {
                 HStack(spacing: 8) {
+                    Button(action: onTransfer) {
+                        Image(systemName: "arrow.left.arrow.right.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.purple.opacity(0.7))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(category.remainingBalance <= 0)
+                    
                     Button(action: onEdit) {
                         Image(systemName: "pencil.circle.fill")
                             .font(.title2)
@@ -422,6 +523,40 @@ struct InlineTextFieldStyle: TextFieldStyle {
                             .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
                     )
             )
+    }
+}
+
+// MARK: - Budget Summary Card Component
+struct BudgetSummaryCard: View {
+    let title: String
+    let amount: Double
+    let color: Color
+    let icon: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(color)
+                    .font(.caption)
+                Spacer()
+            }
+            
+            Text("₺\(String(format: "%.0f", amount))")
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+            
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(.systemGray6))
+        )
     }
 }
 

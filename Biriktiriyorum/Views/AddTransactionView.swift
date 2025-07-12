@@ -14,7 +14,7 @@ struct AddTransactionView: View {
 
     @State private var amount: String = ""
     @State private var selectedCategory: Category?
-    @State private var selectedEmotion: EmotionTag = .neutral
+    @State private var selectedEmotion: EmotionTag?
     @State private var note: String = ""
     @State private var date: Date = Date()
     @State private var showingAlert = false
@@ -22,6 +22,7 @@ struct AddTransactionView: View {
     @State private var showSuccessMessage = false
     @State private var isAmountFocused = false
     @State private var isNoteFocused = false
+    @State private var showingBudgetAlert = false
 
     var body: some View {
         NavigationView {
@@ -80,6 +81,11 @@ struct AddTransactionView: View {
                     }
                     .foregroundColor(.secondary)
                 }
+            }
+            .alert("Insufficient Budget", isPresented: $showingBudgetAlert) {
+                Button("OK") { }
+            } message: {
+                Text("The selected category doesn't have enough budget remaining for this transaction.")
             }
         }
         .onTapGesture {
@@ -176,6 +182,40 @@ struct AddTransactionView: View {
                         ) {
                             selectedCategory = category
                         }
+                    }
+                }
+            }
+            
+            // Budget information for selected category
+            if let selectedCategory = selectedCategory {
+                let category = categoryVM.getCategoryByName(selectedCategory.name)
+                if let category = category {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Budget Info:")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Assigned: ₺\(String(format: "%.2f", category.assignedBudget))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("Remaining: ₺\(String(format: "%.2f", category.remainingBalance))")
+                                    .font(.caption)
+                                    .foregroundColor(category.remainingBalance > 0 ? .green : .red)
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(.systemGray6))
+                        )
                     }
                 }
             }
@@ -300,7 +340,7 @@ struct AddTransactionView: View {
     
     // MARK: - Computed Properties
     private var canSave: Bool {
-        !amount.isEmpty && selectedCategory != nil && Double(amount) != nil && Double(amount)! > 0
+        !amount.isEmpty && selectedCategory != nil && selectedEmotion != nil && Double(amount) != nil && Double(amount)! > 0
     }
     
     // MARK: - Methods
@@ -310,22 +350,38 @@ struct AddTransactionView: View {
         guard let amountValue = Double(amount), amountValue > 0 else {
             return
         }
+        
+        // Check if category has enough budget
+        if let selectedCategory = selectedCategory {
+            let category = categoryVM.getCategoryByName(selectedCategory.name)
+            if let category = category {
+                if category.remainingBalance < amountValue {
+                    showingBudgetAlert = true
+                    return
+                }
+            }
+        }
 
         let transaction = Transaction(
             amount: amountValue,
             category: selectedCategory!.name,
-            emotion: selectedEmotion,
+            emotion: selectedEmotion!,
             note: note,
             date: date
         )
 
         // Add transaction
         transactionVM.add(transaction: transaction)
+        
+        // Subtract from category balance
+        if let selectedCategory = selectedCategory {
+            _ = categoryVM.subtractFromCategoryBalance(selectedCategory.name, amount: amountValue)
+        }
 
         // Reset form
         amount = ""
         selectedCategory = nil
-        selectedEmotion = .neutral
+        selectedEmotion = nil
         note = ""
         date = Date()
         isAmountFocused = false
@@ -364,6 +420,12 @@ struct CategoryCard: View {
                     .fontWeight(.medium)
                     .foregroundColor(isSelected ? .white : .primary)
                     .multilineTextAlignment(.center)
+                
+                // Show remaining balance
+                Text("₺\(String(format: "%.0f", category.remainingBalance))")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(isSelected ? .white.opacity(0.8) : (category.remainingBalance > 0 ? .green : .red))
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
