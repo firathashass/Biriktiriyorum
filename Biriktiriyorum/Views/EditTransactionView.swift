@@ -1,5 +1,5 @@
 //
-//  AddTransactionView.swift
+//  EditTransactionView.swift
 //  Biriktiriyorum
 //
 //  Created by Fırat Haşhaş on 12.07.2025.
@@ -7,21 +7,29 @@
 
 import SwiftUI
 
-struct AddTransactionView: View {
+struct EditTransactionView: View {
     @EnvironmentObject var transactionVM: TransactionViewModel
     @EnvironmentObject var categoryVM: CategoryViewModel
     @Environment(\.dismiss) private var dismiss
-
-    @State private var amount: String = ""
+    
+    let transaction: Transaction
+    
+    @State private var amount: String
     @State private var selectedCategory: Category?
-    @State private var selectedEmotion: EmotionTag = .neutral
-    @State private var note: String = ""
-    @State private var date: Date = Date()
-    @State private var showingAlert = false
-    @State private var alertMessage = ""
+    @State private var selectedEmotion: EmotionTag
+    @State private var note: String
+    @State private var date: Date
     @State private var showSuccessMessage = false
     @State private var isAmountFocused = false
     @State private var isNoteFocused = false
+
+    init(transaction: Transaction) {
+        self.transaction = transaction
+        self._amount = State(initialValue: String(format: "%.2f", transaction.amount))
+        self._selectedEmotion = State(initialValue: transaction.emotion)
+        self._note = State(initialValue: transaction.note)
+        self._date = State(initialValue: transaction.date)
+    }
 
     var body: some View {
         NavigationView {
@@ -57,8 +65,8 @@ struct AddTransactionView: View {
                         // Date Section
                         dateSection
                         
-                        // Save Button
-                        saveButton
+                        // Action Buttons
+                        actionButtons
                         
                         Spacer(minLength: 100)
                     }
@@ -71,7 +79,7 @@ struct AddTransactionView: View {
                     successOverlay
                 }
             }
-            .navigationTitle("New Transaction")
+            .navigationTitle("Edit Transaction")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -80,6 +88,9 @@ struct AddTransactionView: View {
                     }
                     .foregroundColor(.secondary)
                 }
+            }
+            .onAppear {
+                setupInitialCategory()
             }
         }
         .onTapGesture {
@@ -93,16 +104,16 @@ struct AddTransactionView: View {
     // MARK: - Header Section
     private var headerSection: some View {
         VStack(spacing: 8) {
-            Image(systemName: "plus.circle.fill")
+            Image(systemName: "pencil.circle.fill")
                 .font(.system(size: 40))
                 .foregroundColor(.blue)
             
-            Text("Add New Transaction")
+            Text("Edit Transaction")
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundColor(.primary)
             
-            Text("Track your spending and emotions")
+            Text("Update your transaction details")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -163,10 +174,8 @@ struct AddTransactionView: View {
                     .foregroundColor(.secondary)
                     .padding()
                     .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.systemGray6))
-                    )
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
             } else {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
                     ForEach(categoryVM.categories) { category in
@@ -256,12 +265,12 @@ struct AddTransactionView: View {
         }
     }
     
-    // MARK: - Save Button
-    private var saveButton: some View {
-        Button(action: saveTransaction) {
+    // MARK: - Action Buttons
+    private var actionButtons: some View {
+        Button(action: updateTransaction) {
             HStack {
                 Image(systemName: "checkmark.circle.fill")
-                Text("Save Transaction")
+                Text("Update Transaction")
                     .fontWeight(.semibold)
             }
             .frame(maxWidth: .infinity)
@@ -281,7 +290,7 @@ struct AddTransactionView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.title2)
                     .foregroundColor(.green)
-                Text("Transaction saved successfully!")
+                Text("Transaction updated successfully!")
                     .fontWeight(.medium)
                     .foregroundColor(.primary)
             }
@@ -304,14 +313,19 @@ struct AddTransactionView: View {
     }
     
     // MARK: - Methods
-    private func saveTransaction() {
+    private func setupInitialCategory() {
+        selectedCategory = categoryVM.categories.first { $0.name == transaction.category }
+    }
+    
+    private func updateTransaction() {
         guard canSave else { return }
         
         guard let amountValue = Double(amount), amountValue > 0 else {
             return
         }
 
-        let transaction = Transaction(
+        let updatedTransaction = Transaction(
+            id: transaction.id,
             amount: amountValue,
             category: selectedCategory!.name,
             emotion: selectedEmotion,
@@ -319,17 +333,8 @@ struct AddTransactionView: View {
             date: date
         )
 
-        // Add transaction
-        transactionVM.add(transaction: transaction)
-
-        // Reset form
-        amount = ""
-        selectedCategory = nil
-        selectedEmotion = .neutral
-        note = ""
-        date = Date()
-        isAmountFocused = false
-        isNoteFocused = false
+        // Update transaction
+        transactionVM.update(transaction: updatedTransaction)
 
         // Show success
         showSuccessMessage = true
@@ -346,63 +351,15 @@ struct AddTransactionView: View {
     }
 }
 
-// MARK: - Category Card Component
-struct CategoryCard: View {
-    let category: Category
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: "folder.fill")
-                    .font(.title2)
-                    .foregroundColor(isSelected ? .white : .orange)
-                
-                Text(category.name)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(isSelected ? .white : .primary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(isSelected ? Color.orange : Color(.systemGray6))
-            .cornerRadius(12)
-        }
-    }
-}
-
-// MARK: - Emotion Card Component
-struct EmotionCard: View {
-    let emotion: EmotionTag
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                // Extract emoji (first character)
-                Text(String(emotion.rawValue.prefix(1)))
-                    .font(.title2)
-                
-                // Extract text (everything after the emoji and space)
-                Text(emotion.rawValue.dropFirst(2).trimmingCharacters(in: .whitespaces))
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(isSelected ? .white : .primary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(isSelected ? Color.pink : Color(.systemGray6))
-            .cornerRadius(12)
-        }
-    }
-}
-
 // MARK: - Preview
 #Preview {
-    AddTransactionView()
-        .environmentObject(TransactionViewModel())
-        .environmentObject(CategoryViewModel())
-}
+    EditTransactionView(transaction: Transaction(
+        amount: 150.0,
+        category: "Food",
+        emotion: .joyful,
+        note: "Lunch with friends",
+        date: Date()
+    ))
+    .environmentObject(TransactionViewModel())
+    .environmentObject(CategoryViewModel())
+} 

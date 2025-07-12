@@ -26,6 +26,43 @@ class TransactionViewModel: ObservableObject {
         }
     }
     
+    func update(transaction: Transaction) {
+        print("Updating transaction: \(transaction)")
+        if let index = transactions.firstIndex(where: { $0.id == transaction.id }) {
+            transactions[index] = transaction
+            print("Successfully updated transaction at index \(index)")
+            
+            // Save in background to avoid blocking UI
+            DispatchQueue.global(qos: .utility).async {
+                self.saveTransactions()
+            }
+        } else {
+            print("ERROR: Transaction not found for updating")
+        }
+    }
+    
+    func delete(transaction: Transaction) {
+        print("Deleting transaction: \(transaction)")
+        transactions.removeAll { $0.id == transaction.id }
+        print("Total transactions after deletion: \(transactions.count)")
+        
+        // Save in background to avoid blocking UI
+        DispatchQueue.global(qos: .utility).async {
+            self.saveTransactions()
+        }
+    }
+    
+    func delete(at offsets: IndexSet) {
+        print("Deleting transactions at offsets: \(offsets)")
+        transactions.remove(atOffsets: offsets)
+        print("Total transactions after deletion: \(transactions.count)")
+        
+        // Save in background to avoid blocking UI
+        DispatchQueue.global(qos: .utility).async {
+            self.saveTransactions()
+        }
+    }
+    
     private func saveTransactions() {
         print("Saving transactions to UserDefaults...")
         if let encoded = try? JSONEncoder().encode(transactions) {
