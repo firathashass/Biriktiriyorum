@@ -8,10 +8,10 @@
 import SwiftUI
 
 @main
-struct BiriktiriyorumApp: App {
+struct MindfulBudgetApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainTabView()
         }
     }
 }
