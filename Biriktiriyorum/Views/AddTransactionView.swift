@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct AddTransactionView: View {
+    @EnvironmentObject var transactionVM: TransactionViewModel
     @State private var amount: String = ""
     @State private var category: String = ""
     @State private var selectedEmotion: EmotionTag = .neutral
@@ -53,8 +54,8 @@ struct AddTransactionView: View {
     }
     
     func saveTransaction() {
-        guard let amountValue = Double(amount) else {
-            print("Invalid amount")
+        guard let amountValue = Double(amount), !category.isEmpty else {
+            print("Invalid input")
             return
         }
 
@@ -66,7 +67,16 @@ struct AddTransactionView: View {
             date: date
         )
 
-        // For now, just print
+        transactionVM.add(transaction: transaction)
+
+        // Clear form
+        amount = ""
+        category = ""
+        selectedEmotion = .neutral
+        note = ""
+        date = Date()
+
         print("Saved:", transaction)
     }
+
 }
