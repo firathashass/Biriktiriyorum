@@ -29,6 +29,10 @@ struct CategoryView: View {
     @FocusState private var isEditingTextFieldFocused: Bool
     @FocusState private var isGroupTextFieldFocused: Bool
     @FocusState private var isEditingGroupTextFieldFocused: Bool
+    @State private var newGoalAmount: String = ""
+    @State private var newMonthlyBillAmount: String = ""
+    @State private var editingGoalAmount: String = ""
+    @State private var editingMonthlyBillAmount: String = ""
     
     var body: some View {
         NavigationView {
@@ -222,7 +226,9 @@ struct CategoryView: View {
                             showingMoveCategory = true
                         },
                         editingCategory: editingCategory,
-                        editingText: $editingText
+                        editingText: $editingText,
+                        editingGoalAmount: $editingGoalAmount,
+                        editingMonthlyBillAmount: $editingMonthlyBillAmount
                     )
                 }
             }
@@ -343,6 +349,15 @@ struct CategoryView: View {
                         .foregroundColor(.red)
                 }
             }
+            HStack(spacing: 12) {
+                TextField("Goal (optional)", text: $newGoalAmount)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(CustomTextFieldStyle())
+                TextField("Monthly Bill (optional)", text: $newMonthlyBillAmount)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(CustomTextFieldStyle())
+            }
+            .padding(.horizontal, 0)
         }
         .padding(.horizontal, 20)
     }
@@ -350,15 +365,16 @@ struct CategoryView: View {
     // MARK: - Helper Methods
     private func addCategory() {
         guard !newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        
+        let goal = Double(newGoalAmount.trimmingCharacters(in: .whitespacesAndNewlines))
+        let bill = Double(newMonthlyBillAmount.trimmingCharacters(in: .whitespacesAndNewlines))
         withAnimation(.spring()) {
-            categoryVM.addCategory(name: newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines), group: newCategoryGroup)
+            categoryVM.addCategory(name: newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines), group: newCategoryGroup, goalAmount: goal, monthlyBillAmount: bill)
             newCategoryName = ""
             newCategoryGroup = "Other"
+            newGoalAmount = ""
+            newMonthlyBillAmount = ""
             isAddingCategory = false
             isTextFieldFocused = false
-            
-            // Auto-expand the group if it's new
             if !expandedGroups.contains(newCategoryGroup) {
                 expandedGroups.insert(newCategoryGroup)
             }
@@ -368,6 +384,8 @@ struct CategoryView: View {
     private func startEditing(_ category: Category) {
         editingCategory = category
         editingText = category.name
+        editingGoalAmount = category.goalAmount != nil ? String(format: "%.0f", category.goalAmount!) : ""
+        editingMonthlyBillAmount = category.monthlyBillAmount != nil ? String(format: "%.0f", category.monthlyBillAmount!) : ""
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             isEditingTextFieldFocused = true
         }
@@ -376,11 +394,14 @@ struct CategoryView: View {
     private func saveEdit() {
         guard let category = editingCategory,
               !editingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        
+        let goal = Double(editingGoalAmount.trimmingCharacters(in: .whitespacesAndNewlines))
+        let bill = Double(editingMonthlyBillAmount.trimmingCharacters(in: .whitespacesAndNewlines))
         withAnimation(.spring()) {
-            categoryVM.updateCategory(category, newName: editingText.trimmingCharacters(in: .whitespacesAndNewlines))
+            categoryVM.updateCategory(category, newName: editingText.trimmingCharacters(in: .whitespacesAndNewlines), goalAmount: goal, monthlyBillAmount: bill)
             editingCategory = nil
             editingText = ""
+            editingGoalAmount = ""
+            editingMonthlyBillAmount = ""
             isEditingTextFieldFocused = false
         }
     }
@@ -389,6 +410,8 @@ struct CategoryView: View {
         withAnimation(.spring()) {
             editingCategory = nil
             editingText = ""
+            editingGoalAmount = ""
+            editingMonthlyBillAmount = ""
             isEditingTextFieldFocused = false
         }
     }
@@ -836,6 +859,8 @@ struct GroupSectionView: View {
     let onMove: (Category) -> Void
     let editingCategory: Category?
     @Binding var editingText: String
+    @Binding var editingGoalAmount: String
+    @Binding var editingMonthlyBillAmount: String
     
     var body: some View {
         VStack(spacing: 0) {
@@ -897,6 +922,8 @@ struct GroupSectionView: View {
                             index: index,
                             isEditing: editingCategory?.id == category.id,
                             editingText: $editingText,
+                            editingGoalAmount: $editingGoalAmount,
+                            editingMonthlyBillAmount: $editingMonthlyBillAmount,
                             onDelete: {
                                 onDelete(category)
                             },
@@ -945,6 +972,8 @@ struct CategoryRowView: View {
     let index: Int
     let isEditing: Bool
     @Binding var editingText: String
+    @Binding var editingGoalAmount: String
+    @Binding var editingMonthlyBillAmount: String
     let onDelete: () -> Void
     let onEdit: () -> Void
     let onSave: () -> Void
@@ -997,6 +1026,14 @@ struct CategoryRowView: View {
                             onSave()
                         }
                         .transition(.opacity.combined(with: .move(edge: .leading)))
+                    HStack(spacing: 8) {
+                        TextField("Goal (optional)", text: $editingGoalAmount)
+                            .keyboardType(.decimalPad)
+                            .textFieldStyle(InlineTextFieldStyle())
+                        TextField("Monthly Bill (optional)", text: $editingMonthlyBillAmount)
+                            .keyboardType(.decimalPad)
+                            .textFieldStyle(InlineTextFieldStyle())
+                    }
                 } else {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(category.name)
@@ -1017,7 +1054,16 @@ struct CategoryRowView: View {
                                     .font(.caption)
                                     .foregroundColor(category.remainingBalance > 0 ? .green : .red)
                             }
-                            
+                            if let goal = category.goalAmount {
+                                Text("Goal: ₺\(String(format: "%.0f", goal))")
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                            }
+                            if let bill = category.monthlyBillAmount {
+                                Text("Monthly Bill: ₺\(String(format: "%.0f", bill))")
+                                    .font(.caption2)
+                                    .foregroundColor(.purple)
+                            }
                             // Progress bar
                             ProgressView(value: category.assignedBudget > 0 ? (category.assignedBudget - category.remainingBalance) / category.assignedBudget : 0)
                                 .progressViewStyle(LinearProgressViewStyle(tint: category.remainingBalance > 0 ? .green : .red))

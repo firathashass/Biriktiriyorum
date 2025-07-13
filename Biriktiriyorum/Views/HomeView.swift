@@ -43,7 +43,7 @@ struct HomeView: View {
                     .padding(.top, 20)
                 }
             }
-            .navigationTitle("Mindful Budget")
+            .navigationTitle("Biriktiriyorum")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

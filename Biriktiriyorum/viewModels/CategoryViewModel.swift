@@ -37,9 +37,9 @@ class CategoryViewModel: ObservableObject {
         }
     }
     
-    func addCategory(name: String, group: String = "Other") {
+    func addCategory(name: String, group: String = "Other", goalAmount: Double? = nil, monthlyBillAmount: Double? = nil) {
         guard !name.isEmpty else { return }
-        let new = Category(name: name, group: group)
+        let new = Category(name: name, group: group, goalAmount: goalAmount, monthlyBillAmount: monthlyBillAmount)
         if !categories.contains(new) {
             categories.append(new)
             saveCategories()
@@ -51,9 +51,16 @@ class CategoryViewModel: ObservableObject {
         saveCategories()
     }
     
-    func updateCategory(_ category: Category, newName: String) {
+    func updateCategory(_ category: Category, newName: String, goalAmount: Double? = nil, monthlyBillAmount: Double? = nil) {
         guard let index = categories.firstIndex(of: category) else { return }
-        categories[index] = Category(name: newName, assignedBudget: category.assignedBudget, remainingBalance: category.remainingBalance, group: category.group)
+        categories[index] = Category(
+            name: newName,
+            assignedBudget: category.assignedBudget,
+            remainingBalance: category.remainingBalance,
+            group: category.group,
+            goalAmount: goalAmount ?? category.goalAmount,
+            monthlyBillAmount: monthlyBillAmount ?? category.monthlyBillAmount
+        )
         saveCategories()
     }
     
@@ -190,6 +197,18 @@ class CategoryViewModel: ObservableObject {
     
     func canDeleteGroup(_ groupName: String) -> Bool {
         return isCustomGroup(groupName) && getCategoriesInGroup(groupName).isEmpty
+    }
+    
+    func setGoalAmount(for category: Category, goalAmount: Double?) {
+        guard let index = categories.firstIndex(of: category) else { return }
+        categories[index].goalAmount = goalAmount
+        saveCategories()
+    }
+
+    func setMonthlyBillAmount(for category: Category, monthlyBillAmount: Double?) {
+        guard let index = categories.firstIndex(of: category) else { return }
+        categories[index].monthlyBillAmount = monthlyBillAmount
+        saveCategories()
     }
     
     private func saveCategories() {

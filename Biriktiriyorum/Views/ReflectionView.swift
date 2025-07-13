@@ -37,7 +37,7 @@ struct ReflectionView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Mindful Budget")
+            .navigationTitle("Biriktiriyorum")
             .navigationBarTitleDisplayMode(.large)
         }
     }
