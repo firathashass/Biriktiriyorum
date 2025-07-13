@@ -10,15 +10,18 @@ import SwiftUI
 struct MainTabView: View {
     @StateObject private var categoryVM = CategoryViewModel()
     @StateObject private var transactionVM = TransactionViewModel()
+    @EnvironmentObject var authViewModel: UserAuthViewModel
     
     var body: some View {
         TabView {
-            HomeView()
-                .environmentObject(categoryVM)
-                .environmentObject(transactionVM)
-                .tabItem {
-                    Label("Home", systemImage: "house.fill")
-                }
+            NavigationView {
+                HomeView()
+                    .environmentObject(categoryVM)
+                    .environmentObject(transactionVM)
+            }
+            .tabItem {
+                Label("Home", systemImage: "house.fill")
+            }
 
             AddTransactionView()
                 .environmentObject(categoryVM)
@@ -50,6 +53,34 @@ struct MainTabView: View {
                 .tabItem {
                     Label("Reflection", systemImage: "person.fill.questionmark")
                 }
+
+            NavigationView {
+                MoreView()
+            }
+            .tabItem {
+                Label("More", systemImage: "ellipsis.circle")
+            }
         }
+    }
+}
+
+// New MoreView for the More tab
+struct MoreView: View {
+    @EnvironmentObject var authViewModel: UserAuthViewModel
+    var body: some View {
+        List {
+            Section {
+                Button(role: .destructive) {
+                    authViewModel.signOut()
+                } label: {
+                    HStack {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                        Text("Sign Out")
+                    }
+                }
+            }
+        }
+        .navigationTitle("More")
+        .listStyle(InsetGroupedListStyle())
     }
 }
