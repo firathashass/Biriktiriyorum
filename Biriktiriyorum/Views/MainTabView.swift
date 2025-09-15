@@ -8,10 +8,18 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @StateObject private var categoryVM = CategoryViewModel()
-    @StateObject private var transactionVM = TransactionViewModel()
+    @StateObject private var planVM = PlanViewModel()
+    @StateObject private var categoryVM: CategoryViewModel
+    @StateObject private var transactionVM: TransactionViewModel
     @EnvironmentObject var authViewModel: UserAuthViewModel
     
+    init() {
+        let plan = PlanViewModel()
+        _planVM = StateObject(wrappedValue: plan)
+        _categoryVM = StateObject(wrappedValue: CategoryViewModel(planViewModel: plan))
+        _transactionVM = StateObject(wrappedValue: TransactionViewModel(planViewModel: plan))
+    }
+
     var body: some View {
         TabView {
             NavigationView {
@@ -56,19 +64,30 @@ struct MainTabView: View {
 
             NavigationView {
                 MoreView()
+                    .environmentObject(planVM)
             }
             .tabItem {
                 Label("More", systemImage: "ellipsis.circle")
             }
         }
+        .tint(AppTheme.accent)
     }
 }
 
 // New MoreView for the More tab
 struct MoreView: View {
     @EnvironmentObject var authViewModel: UserAuthViewModel
+    @EnvironmentObject var planVM: PlanViewModel
     var body: some View {
         List {
+            Section {
+                NavigationLink(destination: PlansView().environmentObject(planVM)) {
+                    HStack {
+                        Image(systemName: "list.bullet.rectangle.portrait")
+                        Text("Plans")
+                    }
+                }
+            }
             Section {
                 Button(role: .destructive) {
                     authViewModel.signOut()

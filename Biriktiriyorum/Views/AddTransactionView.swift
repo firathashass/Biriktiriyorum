@@ -14,7 +14,7 @@ struct AddTransactionView: View {
 
     @State private var amount: String = ""
     @State private var selectedCategory: Category?
-    @State private var selectedEmotion: EmotionTag?
+    
     @State private var note: String = ""
     @State private var date: Date = Date()
     @State private var showingAlert = false
@@ -49,8 +49,7 @@ struct AddTransactionView: View {
                         // Category Section
                         categorySection
                         
-                        // Emotion Section
-                        emotionSection
+                        
                         
                         // Note Section
                         noteSection
@@ -108,7 +107,7 @@ struct AddTransactionView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(.primary)
             
-            Text("Track your spending and emotions")
+            Text("Track your spending")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -221,29 +220,7 @@ struct AddTransactionView: View {
         }
     }
     
-    // MARK: - Emotion Section
-    private var emotionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "heart.circle.fill")
-                    .foregroundColor(.pink)
-                Text("How do you feel about this purchase?")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-            }
-            
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
-                ForEach(EmotionTag.allCases) { emotion in
-                    EmotionCard(
-                        emotion: emotion,
-                        isSelected: selectedEmotion == emotion
-                    ) {
-                        selectedEmotion = emotion
-                    }
-                }
-            }
-        }
-    }
+    
     
     // MARK: - Note Section
     private var noteSection: some View {
@@ -339,7 +316,7 @@ struct AddTransactionView: View {
     
     // MARK: - Computed Properties
     private var canSave: Bool {
-        !amount.isEmpty && selectedCategory != nil && selectedEmotion != nil && Double(amount) != nil && Double(amount)! > 0
+        !amount.isEmpty && selectedCategory != nil && Double(amount) != nil && Double(amount)! > 0
     }
     
     // MARK: - Methods
@@ -364,7 +341,6 @@ struct AddTransactionView: View {
         let transaction = Transaction(
             amount: amountValue,
             category: selectedCategory!.name,
-            emotion: selectedEmotion!,
             note: note,
             date: date
         )
@@ -380,7 +356,7 @@ struct AddTransactionView: View {
         // Reset form
         amount = ""
         selectedCategory = nil
-        selectedEmotion = nil
+        
         note = ""
         date = Date()
         isAmountFocused = false
@@ -434,32 +410,7 @@ struct CategoryCard: View {
     }
 }
 
-// MARK: - Emotion Card Component
-struct EmotionCard: View {
-    let emotion: EmotionTag
-    let isSelected: Bool
-    let action: () -> Void
     
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                // Extract emoji (first character)
-                Text(String(emotion.rawValue.prefix(1)))
-                    .font(.title2)
-                
-                // Extract text (everything after the emoji and space)
-                Text(emotion.rawValue.dropFirst(2).trimmingCharacters(in: .whitespaces))
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(isSelected ? .white : .primary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(isSelected ? Color.pink : Color(.systemGray6))
-            .cornerRadius(12)
-        }
-    }
-}
 
 // MARK: - Category Group Section Component
 struct CategoryGroupSection: View {

@@ -10,31 +10,36 @@ import Foundation
 class CategoryViewModel: ObservableObject {
     @Published var categories: [Category] = []
     @Published var customGroups: [String] = []
+    private var planVM: PlanViewModel?
     
     // Predefined groups
     static let defaultGroups = ["Essentials", "Lifestyle", "Savings"]
     
-    init() {
+    init(planViewModel: PlanViewModel? = nil) {
+        self.planVM = planViewModel
         loadCategories()
         loadCustomGroups()
-        if categories.isEmpty {
-            // Initialize with default grouped categories if none exist
+        // Seed defaults only when not using PlanViewModel (legacy single-plan mode)
+        if categories.isEmpty, planVM == nil {
             categories = [
-                // Essentials
                 Category(name: "Rent", assignedBudget: 3000, remainingBalance: 3000, group: "Essentials"),
                 Category(name: "Groceries", assignedBudget: 1000, remainingBalance: 800, group: "Essentials"),
                 Category(name: "Transportation", assignedBudget: 500, remainingBalance: 300, group: "Essentials"),
-                
-                // Lifestyle
                 Category(name: "Dining", assignedBudget: 400, remainingBalance: 250, group: "Lifestyle"),
                 Category(name: "Entertainment", assignedBudget: 300, remainingBalance: 200, group: "Lifestyle"),
-                
-                // Savings
                 Category(name: "Emergency Fund", assignedBudget: 1000, remainingBalance: 1000, group: "Savings"),
                 Category(name: "Travel", assignedBudget: 800, remainingBalance: 800, group: "Savings")
             ]
             saveCategories()
         }
+        observePlanChanges()
+    }
+
+    func setPlanViewModel(_ vm: PlanViewModel) {
+        self.planVM = vm
+        loadCategories()
+        loadCustomGroups()
+        observePlanChanges()
     }
     
     func addCategory(name: String, group: String = "Other", goalAmount: Double? = nil, monthlyBillAmount: Double? = nil) {
@@ -213,12 +218,14 @@ class CategoryViewModel: ObservableObject {
     
     private func saveCategories() {
         if let encoded = try? JSONEncoder().encode(categories) {
-            UserDefaults.standard.set(encoded, forKey: "SavedCategories")
+            let key = planVM?.scopedKey(base: "SavedCategories") ?? "SavedCategories"
+            UserDefaults.standard.set(encoded, forKey: key)
         }
     }
     
     private func loadCategories() {
-        if let data = UserDefaults.standard.data(forKey: "SavedCategories"),
+        let key = planVM?.scopedKey(base: "SavedCategories") ?? "SavedCategories"
+        if let data = UserDefaults.standard.data(forKey: key),
            let decoded = try? JSONDecoder().decode([Category].self, from: data) {
             categories = decoded
         }
@@ -226,14 +233,23 @@ class CategoryViewModel: ObservableObject {
     
     private func saveCustomGroups() {
         if let encoded = try? JSONEncoder().encode(customGroups) {
-            UserDefaults.standard.set(encoded, forKey: "SavedCustomGroups")
+            let key = planVM?.scopedKey(base: "SavedCustomGroups") ?? "SavedCustomGroups"
+            UserDefaults.standard.set(encoded, forKey: key)
         }
     }
     
     private func loadCustomGroups() {
-        if let data = UserDefaults.standard.data(forKey: "SavedCustomGroups"),
+        let key = planVM?.scopedKey(base: "SavedCustomGroups") ?? "SavedCustomGroups"
+        if let data = UserDefaults.standard.data(forKey: key),
            let decoded = try? JSONDecoder().decode([String].self, from: data) {
             customGroups = decoded
+        }
+    }
+
+    private func observePlanChanges() {
+        NotificationCenter.default.addObserver(forName: .activePlanChanged, object: nil, queue: .main) { [weak self] _ in
+            self?.loadCategories()
+            self?.loadCustomGroups()
         }
     }
 }

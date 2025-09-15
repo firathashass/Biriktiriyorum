@@ -16,7 +16,7 @@ struct EditTransactionView: View {
     
     @State private var amount: String
     @State private var selectedCategory: Category?
-    @State private var selectedEmotion: EmotionTag
+    
     @State private var note: String
     @State private var date: Date
     @State private var showSuccessMessage = false
@@ -26,7 +26,7 @@ struct EditTransactionView: View {
     init(transaction: Transaction) {
         self.transaction = transaction
         self._amount = State(initialValue: String(format: "%.2f", transaction.amount))
-        self._selectedEmotion = State(initialValue: transaction.emotion)
+        
         self._note = State(initialValue: transaction.note)
         self._date = State(initialValue: transaction.date)
     }
@@ -56,8 +56,7 @@ struct EditTransactionView: View {
                         // Category Section
                         categorySection
                         
-                        // Emotion Section
-                        emotionSection
+                        
                         
                         // Note Section
                         noteSection
@@ -191,29 +190,7 @@ struct EditTransactionView: View {
         }
     }
     
-    // MARK: - Emotion Section
-    private var emotionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "heart.circle.fill")
-                    .foregroundColor(.pink)
-                Text("How do you feel about this purchase?")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-            }
-            
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
-                ForEach(EmotionTag.allCases) { emotion in
-                    EmotionCard(
-                        emotion: emotion,
-                        isSelected: selectedEmotion == emotion
-                    ) {
-                        selectedEmotion = emotion
-                    }
-                }
-            }
-        }
-    }
+    
     
     // MARK: - Note Section
     private var noteSection: some View {
@@ -328,7 +305,6 @@ struct EditTransactionView: View {
             id: transaction.id,
             amount: amountValue,
             category: selectedCategory!.name,
-            emotion: selectedEmotion,
             note: note,
             date: date
         )
@@ -356,10 +332,9 @@ struct EditTransactionView: View {
     EditTransactionView(transaction: Transaction(
         amount: 150.0,
         category: "Food",
-        emotion: .joyful,
         note: "Lunch with friends",
         date: Date()
     ))
     .environmentObject(TransactionViewModel())
     .environmentObject(CategoryViewModel())
-} 
+}

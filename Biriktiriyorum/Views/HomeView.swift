@@ -15,11 +15,11 @@ struct HomeView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background gradient
+                // Background surface
                 LinearGradient(
                     gradient: Gradient(colors: [
-                        Color(.systemBackground),
-                        Color(.systemGray6)
+                        AppTheme.background,
+                        AppTheme.card
                     ]),
                     startPoint: .top,
                     endPoint: .bottom
@@ -52,7 +52,7 @@ struct HomeView: View {
                     }) {
                         Image(systemName: "arrow.left.arrow.right.circle.fill")
                             .font(.title2)
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(AppTheme.accent)
                     }
                 }
             }
@@ -68,16 +68,16 @@ struct HomeView: View {
         VStack(spacing: 8) {
             Image(systemName: "chart.pie.fill")
                 .font(.system(size: 40))
-                .foregroundColor(.blue)
+                .foregroundColor(AppTheme.accent)
             
             Text("Budget Overview")
                 .font(.title2)
                 .fontWeight(.semibold)
-                .foregroundColor(.primary)
+                .foregroundColor(AppTheme.primaryText)
             
             Text("Track your spending and stay within budget")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(AppTheme.secondaryText)
         }
         .padding(.vertical, 20)
     }
@@ -87,7 +87,7 @@ struct HomeView: View {
         VStack(spacing: 16) {
             HStack {
                 Image(systemName: "chart.bar.fill")
-                    .foregroundColor(.green)
+                    .foregroundColor(AppTheme.positive)
                 Text("Budget Summary")
                     .font(.headline)
                     .fontWeight(.semibold)
@@ -99,7 +99,7 @@ struct HomeView: View {
                 BudgetCard(
                     title: "Total Assigned",
                     amount: totalAssignedBudget,
-                    color: .blue,
+                    color: AppTheme.accent,
                     icon: "dollarsign.circle.fill"
                 )
                 
@@ -107,7 +107,7 @@ struct HomeView: View {
                 BudgetCard(
                     title: "Total Remaining",
                     amount: totalRemainingBudget,
-                    color: totalRemainingBudget >= 0 ? .green : .red,
+                    color: totalRemainingBudget >= 0 ? AppTheme.positive : AppTheme.negative,
                     icon: "creditcard.fill"
                 )
                 
@@ -115,7 +115,7 @@ struct HomeView: View {
                 BudgetCard(
                     title: "Total Spent",
                     amount: totalSpent,
-                    color: .orange,
+                    color: AppTheme.warning,
                     icon: "cart.fill"
                 )
                 
@@ -135,7 +135,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "folder.fill")
-                    .foregroundColor(.orange)
+                    .foregroundColor(AppTheme.warning)
                 Text("Category Budgets")
                     .font(.headline)
                     .fontWeight(.semibold)
@@ -185,19 +185,19 @@ struct BudgetCard: View {
                 Spacer()
             }
             
-            Text("₺\(String(format: "%.0f", amount))")
+            Text(amount.asTRY())
                 .font(.title2)
                 .fontWeight(.bold)
-                .foregroundColor(.primary)
+                .foregroundColor(AppTheme.primaryText)
             
             Text(title)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(AppTheme.secondaryText)
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray6))
+            RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+                .fill(AppTheme.card)
         )
     }
 }
@@ -214,36 +214,36 @@ struct CategoryBudgetRow: View {
                     .fontWeight(.medium)
                 
                 HStack {
-                    Text("Assigned: ₺\(String(format: "%.0f", category.assignedBudget))")
+                    Text("Assigned: \(category.assignedBudget.asTRY())")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.secondaryText)
                     
                     Text("•")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.secondaryText)
                     
-                    Text("Spent: ₺\(String(format: "%.0f", category.assignedBudget - category.remainingBalance))")
+                    Text("Spent: \((category.assignedBudget - category.remainingBalance).asTRY())")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.secondaryText)
                 }
             }
             
             Spacer()
             
             VStack(alignment: .trailing, spacing: 4) {
-                Text("₺\(String(format: "%.0f", category.remainingBalance))")
+                Text(category.remainingBalance.asTRY())
                     .font(.headline)
                     .fontWeight(.bold)
-                    .foregroundColor(category.remainingBalance > 0 ? .green : .red)
+                    .foregroundColor(category.remainingBalance > 0 ? AppTheme.positive : AppTheme.negative)
                 
                 Text("Remaining")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(AppTheme.secondaryText)
             }
         }
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray6))
+            RoundedRectangle(cornerRadius: AppTheme.cornerRadius)
+                .fill(AppTheme.card)
         )
     }
 }

@@ -6,12 +6,23 @@
 //
 
 import Foundation
+import Combine
 
 class TransactionViewModel: ObservableObject {
     @Published var transactions: [Transaction] = []
+    private var cancellables: Set<AnyCancellable> = []
+    private var planVM: PlanViewModel?
     
-    init() {
+    init(planViewModel: PlanViewModel? = nil) {
+        self.planVM = planViewModel
         print("TransactionViewModel initialized")
+        observePlanChanges()
+        loadTransactions()
+    }
+    
+    func setPlanViewModel(_ vm: PlanViewModel) {
+        self.planVM = vm
+        observePlanChanges()
         loadTransactions()
     }
     
@@ -66,7 +77,8 @@ class TransactionViewModel: ObservableObject {
     private func saveTransactions() {
         print("Saving transactions to UserDefaults...")
         if let encoded = try? JSONEncoder().encode(transactions) {
-            UserDefaults.standard.set(encoded, forKey: "SavedTransactions")
+            let key = planVM?.scopedKey(base: "SavedTransactions") ?? "SavedTransactions"
+            UserDefaults.standard.set(encoded, forKey: key)
             // Remove synchronize() - it's blocking the UI
             print("Successfully saved \(transactions.count) transactions")
         } else {
@@ -76,7 +88,8 @@ class TransactionViewModel: ObservableObject {
     
     private func loadTransactions() {
         print("Loading transactions from UserDefaults...")
-        if let data = UserDefaults.standard.data(forKey: "SavedTransactions"),
+        let key = planVM?.scopedKey(base: "SavedTransactions") ?? "SavedTransactions"
+        if let data = UserDefaults.standard.data(forKey: key),
            let decoded = try? JSONDecoder().decode([Transaction].self, from: data) {
             transactions = decoded
             print("Successfully loaded \(transactions.count) transactions")
@@ -84,28 +97,16 @@ class TransactionViewModel: ObservableObject {
             print("No saved transactions found")
         }
     }
-    
-    // MARK: - Reflection Statistics
-    
-    func getEmotionalSpendingStats() -> [EmotionTag: (count: Int, percentage: Double, totalAmount: Double)] {
-        let totalTransactions = transactions.count
-        guard totalTransactions > 0 else { return [:] }
-        
-        var stats: [EmotionTag: (count: Int, percentage: Double, totalAmount: Double)] = [:]
-        
-        for emotion in EmotionTag.allCases {
-            let emotionTransactions = transactions.filter { $0.emotion == emotion }
-            let count = emotionTransactions.count
-            let percentage = Double(count) / Double(totalTransactions) * 100
-            let totalAmount = emotionTransactions.reduce(0) { $0 + $1.amount }
-            
-            stats[emotion] = (count: count, percentage: percentage, totalAmount: totalAmount)
+
+    private func observePlanChanges() {
+        NotificationCenter.default.addObserver(forName: .activePlanChanged, object: nil, queue: .main) { [weak self] _ in
+            self?.loadTransactions()
         }
-        
-        return stats
     }
     
-    func getWeeklyStats() -> [EmotionTag: (count: Int, totalAmount: Double)] {
+    // MARK: - Aggregates
+
+    func getWeeklyStats() -> [String: (count: Int, totalAmount: Double)] {
         let calendar = Calendar.current
         let now = Date()
         let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
@@ -114,14 +115,11 @@ class TransactionViewModel: ObservableObject {
             calendar.isDate(transaction.date, inSameDayAs: weekStart) || transaction.date > weekStart
         }
         
-        var stats: [EmotionTag: (count: Int, totalAmount: Double)] = [:]
-        
-        for emotion in EmotionTag.allCases {
-            let emotionTransactions = weeklyTransactions.filter { $0.emotion == emotion }
-            let count = emotionTransactions.count
-            let totalAmount = emotionTransactions.reduce(0) { $0 + $1.amount }
-            
-            stats[emotion] = (count: count, totalAmount: totalAmount)
+        var stats: [String: (count: Int, totalAmount: Double)] = [:]
+        for transaction in weeklyTransactions {
+            let key = transaction.category
+            let current = stats[key] ?? (count: 0, totalAmount: 0)
+            stats[key] = (count: current.count + 1, totalAmount: current.totalAmount + transaction.amount)
         }
         
         return stats
@@ -144,8 +142,8 @@ class TransactionViewModel: ObservableObject {
     }
     
     // MARK: - Date Range Statistics
-    
-    func getStatsForDateRange(from startDate: Date, to endDate: Date) -> [EmotionTag: (count: Int, percentage: Double, totalAmount: Double)] {
+
+    func getStatsForDateRange(from startDate: Date, to endDate: Date) -> [String: (count: Int, percentage: Double, totalAmount: Double)] {
         let calendar = Calendar.current
         let filteredTransactions = transactions.filter { transaction in
             transaction.date >= startDate && transaction.date <= endDate
@@ -154,15 +152,17 @@ class TransactionViewModel: ObservableObject {
         let totalTransactions = filteredTransactions.count
         guard totalTransactions > 0 else { return [:] }
         
-        var stats: [EmotionTag: (count: Int, percentage: Double, totalAmount: Double)] = [:]
-        
-        for emotion in EmotionTag.allCases {
-            let emotionTransactions = filteredTransactions.filter { $0.emotion == emotion }
-            let count = emotionTransactions.count
-            let percentage = Double(count) / Double(totalTransactions) * 100
-            let totalAmount = emotionTransactions.reduce(0) { $0 + $1.amount }
-            
-            stats[emotion] = (count: count, percentage: percentage, totalAmount: totalAmount)
+        var stats: [String: (count: Int, percentage: Double, totalAmount: Double)] = [:]
+        for transaction in filteredTransactions {
+            let key = transaction.category
+            let current = stats[key] ?? (count: 0, percentage: 0, totalAmount: 0)
+            stats[key] = (count: current.count + 1,
+                          percentage: 0,
+                          totalAmount: current.totalAmount + transaction.amount)
+        }
+        // compute percentages
+        for (key, value) in stats {
+            stats[key]?.percentage = Double(value.count) / Double(totalTransactions) * 100
         }
         
         return stats
@@ -184,7 +184,7 @@ class TransactionViewModel: ObservableObject {
     
     // MARK: - Predefined Periods
     
-    func getStatsForPeriod(_ period: TimePeriod) -> [EmotionTag: (count: Int, percentage: Double, totalAmount: Double)] {
+    func getStatsForPeriod(_ period: TimePeriod) -> [String: (count: Int, percentage: Double, totalAmount: Double)] {
         let (startDate, endDate) = period.dateRange
         return getStatsForDateRange(from: startDate, to: endDate)
     }

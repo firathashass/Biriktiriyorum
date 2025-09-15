@@ -6,18 +6,13 @@
 //
 
 import SwiftUI
-import Charts
+ 
 
 struct ReflectionView: View {
     @StateObject private var transactionViewModel = TransactionViewModel()
     @State private var selectedPeriod: TimePeriod = .thisWeek
     
-    private let emotionColors: [EmotionTag: Color] = [
-        .joyful: .green,
-        .regretful: .red,
-        .impulsive: .orange,
-        .neutral: .gray
-    ]
+    
     
     var body: some View {
         NavigationView {
@@ -29,11 +24,8 @@ struct ReflectionView: View {
                     // Header Stats
                     headerStatsView
                     
-                    // Emotional Spending Chart
-                    emotionalSpendingChart
-                    
-                    // Weekly Summary
-                    weeklySummaryView
+                    // Summary
+                    summaryView
                 }
                 .padding()
             }
@@ -101,103 +93,28 @@ struct ReflectionView: View {
         }
     }
     
-    private var emotionalSpendingChart: some View {
+    private var summaryView: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Emotional Spending - \(selectedPeriod.displayText)")
+            Text("Summary - \(selectedPeriod.displayText)")
                 .font(.title2)
                 .fontWeight(.bold)
             
             let stats = transactionViewModel.getStatsForPeriod(selectedPeriod)
             
             if stats.isEmpty {
-                Text("No transactions in \(selectedPeriod.displayText.lowercased()). Start tracking your spending to see emotional patterns!")
+                Text("No transactions in \(selectedPeriod.displayText.lowercased()).")
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding()
             } else {
-                // Pie Chart using Charts framework
-                Chart {
-                    ForEach(EmotionTag.allCases, id: \.self) { emotion in
-                        if let stat = stats[emotion], stat.count > 0 {
-                            SectorMark(
-                                angle: .value("Count", stat.count),
-                                innerRadius: .ratio(0.5),
-                                angularInset: 2
-                            )
-                            .foregroundStyle(emotionColors[emotion] ?? .gray)
-                        }
-                    }
-                }
-                .frame(height: 200)
-                
-                // Legend
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
-                    ForEach(EmotionTag.allCases, id: \.self) { emotion in
-                        if let stat = stats[emotion], stat.count > 0 {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(stats.keys.sorted(), id: \.self) { key in
+                        if let stat = stats[key] {
                             HStack {
-                                Circle()
-                                    .fill(emotionColors[emotion] ?? .gray)
-                                    .frame(width: 12, height: 12)
-                                
-                                VStack(alignment: .leading) {
-                                    Text(emotion.rawValue)
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                    
-                                    Text("\(stat.count) (\(String(format: "%.1f", stat.percentage))%)")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                }
-                                
+                                Text(key)
                                 Spacer()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(radius: 2)
-    }
-    
-    private var weeklySummaryView: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("\(selectedPeriod.displayText) Emotions")
-                .font(.title2)
-                .fontWeight(.bold)
-            
-            let periodStats = transactionViewModel.getStatsForPeriod(selectedPeriod)
-            
-            if periodStats.values.allSatisfy({ $0.count == 0 }) {
-                Text("No transactions in \(selectedPeriod.displayText.lowercased()) yet.")
-                    .foregroundColor(.secondary)
-                    .padding()
-            } else {
-                VStack(spacing: 12) {
-                    ForEach(EmotionTag.allCases, id: \.self) { emotion in
-                        if let stat = periodStats[emotion], stat.count > 0 {
-                            HStack {
-                                Text(emotion.rawValue)
-                                    .font(.body)
-                                
-                                Spacer()
-                                
-                                VStack(alignment: .trailing) {
-                                    Text("\(stat.count) transactions")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    
-                                    Text(String(format: "%.2f ₺", stat.totalAmount))
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                }
-                            }
-                            .padding(.vertical, 4)
-                            
-                            if emotion != EmotionTag.allCases.last {
-                                Divider()
+                                Text("\(stat.count) | \(String(format: "%.2f ₺", stat.totalAmount))")
+                                    .foregroundColor(.secondary)
                             }
                         }
                     }
