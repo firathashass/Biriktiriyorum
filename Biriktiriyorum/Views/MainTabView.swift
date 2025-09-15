@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @StateObject private var planVM = PlanViewModel()
+    @StateObject private var planVM: PlanViewModel
     @StateObject private var categoryVM: CategoryViewModel
     @StateObject private var transactionVM: TransactionViewModel
     @EnvironmentObject var authViewModel: UserAuthViewModel

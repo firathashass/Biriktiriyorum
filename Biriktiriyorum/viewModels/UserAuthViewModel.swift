@@ -1,7 +1,7 @@
 import Foundation
 import FirebaseAuth
 
-class UserAuthViewModel: ObservableObject {
+final class UserAuthViewModel: ObservableObject {
     @Published var isAuthenticated: Bool = false
     @Published var user: User?
     
