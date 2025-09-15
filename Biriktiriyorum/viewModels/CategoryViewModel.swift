@@ -6,11 +6,13 @@
 //
 
 import Foundation
+import Combine
 
-class CategoryViewModel: ObservableObject {
+final class CategoryViewModel: ObservableObject {
     @Published var categories: [Category] = []
     @Published var customGroups: [String] = []
     private var planVM: PlanViewModel?
+    private var planChangeCancellable: AnyCancellable?
     
     // Predefined groups
     static let defaultGroups = ["Essentials", "Lifestyle", "Savings"]
@@ -247,9 +249,10 @@ class CategoryViewModel: ObservableObject {
     }
 
     private func observePlanChanges() {
-        NotificationCenter.default.addObserver(forName: .activePlanChanged, object: nil, queue: .main) { [weak self] _ in
-            self?.loadCategories()
-            self?.loadCustomGroups()
-        }
+        planChangeCancellable = NotificationCenter.default.publisher(for: .activePlanChanged)
+            .sink { [weak self] _ in
+                self?.loadCategories()
+                self?.loadCustomGroups()
+            }
     }
 }

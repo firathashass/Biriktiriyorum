@@ -7,7 +7,7 @@
 
 import Foundation
 
-class PlanViewModel: ObservableObject {
+final class PlanViewModel: ObservableObject {
     @Published var plans: [Plan] = []
     @Published var activePlanId: String? {
         didSet { saveActivePlanId() }

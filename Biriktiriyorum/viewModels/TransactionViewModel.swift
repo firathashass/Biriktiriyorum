@@ -8,10 +8,11 @@
 import Foundation
 import Combine
 
-class TransactionViewModel: ObservableObject {
+final class TransactionViewModel: ObservableObject {
     @Published var transactions: [Transaction] = []
     private var cancellables: Set<AnyCancellable> = []
     private var planVM: PlanViewModel?
+    private var planChangeCancellable: AnyCancellable?
     
     init(planViewModel: PlanViewModel? = nil) {
         self.planVM = planViewModel
@@ -99,9 +100,10 @@ class TransactionViewModel: ObservableObject {
     }
 
     private func observePlanChanges() {
-        NotificationCenter.default.addObserver(forName: .activePlanChanged, object: nil, queue: .main) { [weak self] _ in
-            self?.loadTransactions()
-        }
+        planChangeCancellable = NotificationCenter.default.publisher(for: .activePlanChanged)
+            .sink { [weak self] _ in
+                self?.loadTransactions()
+            }
     }
     
     // MARK: - Aggregates
