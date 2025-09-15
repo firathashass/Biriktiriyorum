@@ -10,6 +10,7 @@ import SwiftUI
 struct EditTransactionView: View {
     @EnvironmentObject var transactionVM: TransactionViewModel
     @EnvironmentObject var categoryVM: CategoryViewModel
+    @EnvironmentObject var accountVM: AccountViewModel
     @Environment(\.dismiss) private var dismiss
     
     let transaction: Transaction
@@ -19,6 +20,7 @@ struct EditTransactionView: View {
     @State private var selectedEmotion: EmotionTag
     @State private var note: String
     @State private var date: Date
+    @State private var selectedAccountID: UUID?
     @State private var showSuccessMessage = false
     @State private var isAmountFocused = false
     @State private var isNoteFocused = false
@@ -55,6 +57,9 @@ struct EditTransactionView: View {
                         
                         // Category Section
                         categorySection
+
+                        // Account Section
+                        accountSection
                         
                         // Emotion Section
                         emotionSection
@@ -214,6 +219,40 @@ struct EditTransactionView: View {
             }
         }
     }
+
+    // MARK: - Account Section
+    private var accountSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "creditcard.circle.fill")
+                    .foregroundColor(.mint)
+                Text("Account")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+            }
+
+            if accountVM.accounts.isEmpty {
+                Text("No accounts available")
+                    .foregroundColor(.secondary)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+            } else {
+                Picker("Account", selection: Binding(get: { selectedAccountID ?? transaction.accountID }, set: { selectedAccountID = $0 })) {
+                    ForEach(accountVM.accounts) { account in
+                        Text("\(account.name) - ₺\(String(format: "%.0f", account.balance))").tag(account.id as UUID?)
+                    }
+                }
+                .pickerStyle(.menu)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray6))
+                )
+            }
+        }
+    }
     
     // MARK: - Note Section
     private var noteSection: some View {
@@ -309,7 +348,7 @@ struct EditTransactionView: View {
     
     // MARK: - Computed Properties
     private var canSave: Bool {
-        !amount.isEmpty && selectedCategory != nil && Double(amount) != nil && Double(amount)! > 0
+        !amount.isEmpty && selectedCategory != nil && (selectedAccountID ?? transaction.accountID) != UUID() && Double(amount) != nil && Double(amount)! > 0
     }
     
     // MARK: - Methods
@@ -330,7 +369,8 @@ struct EditTransactionView: View {
             category: selectedCategory!.name,
             emotion: selectedEmotion,
             note: note,
-            date: date
+            date: date,
+            accountID: selectedAccountID ?? transaction.accountID
         )
 
         // Update transaction
@@ -353,13 +393,20 @@ struct EditTransactionView: View {
 
 // MARK: - Preview
 #Preview {
-    EditTransactionView(transaction: Transaction(
+    let accountVM = AccountViewModel()
+    let sampleAccount = Account(name: "Wallet", type: .cash, balance: 500)
+    accountVM.addAccount(sampleAccount)
+    let sampleTransaction = Transaction(
         amount: 150.0,
         category: "Food",
         emotion: .joyful,
         note: "Lunch with friends",
-        date: Date()
-    ))
-    .environmentObject(TransactionViewModel())
-    .environmentObject(CategoryViewModel())
+        date: Date(),
+        accountID: sampleAccount.id
+    )
+    let transactionVM = TransactionViewModel(accountViewModel: accountVM)
+    return EditTransactionView(transaction: sampleTransaction)
+        .environmentObject(transactionVM)
+        .environmentObject(CategoryViewModel())
+        .environmentObject(accountVM)
 } 

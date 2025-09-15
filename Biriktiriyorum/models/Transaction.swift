@@ -14,23 +14,26 @@ struct Transaction: Identifiable, Codable {
     let emotion: EmotionTag
     let note: String
     let date: Date
+    let accountID: UUID   // Yeni alan
     
-    init(amount: Double, category: String, emotion: EmotionTag, note: String, date: Date) {
+    init(amount: Double, category: String, emotion: EmotionTag, note: String, date: Date, accountID: UUID) {
         self.id = UUID()
         self.amount = amount
         self.category = category
         self.emotion = emotion
         self.note = note
         self.date = date
+        self.accountID = accountID
     }
     
-    init(id: UUID, amount: Double, category: String, emotion: EmotionTag, note: String, date: Date) {
+    init(id: UUID, amount: Double, category: String, emotion: EmotionTag, note: String, date: Date, accountID: UUID) {
         self.id = id
         self.amount = amount
         self.category = category
         self.emotion = emotion
         self.note = note
         self.date = date
+        self.accountID = accountID
     }
 }
 

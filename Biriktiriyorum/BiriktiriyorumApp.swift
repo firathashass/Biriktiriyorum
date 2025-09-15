@@ -27,11 +27,18 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct BiriktiriyorumApp: App {
     @StateObject var planVM = PlanViewModel()
-    @StateObject var transactionVM = TransactionViewModel(planId: nil)
+    @StateObject var accountVM = AccountViewModel()
+    @StateObject var transactionVM: TransactionViewModel
     @StateObject var categoryVM = CategoryViewModel(planId: nil)
     @StateObject var authViewModel = UserAuthViewModel()
     @State private var showSignUp: Bool = false
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+
+    init() {
+        let accountVM = AccountViewModel()
+        _accountVM = StateObject(wrappedValue: accountVM)
+        _transactionVM = StateObject(wrappedValue: TransactionViewModel(accountViewModel: accountVM, planId: nil))
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -40,6 +47,7 @@ struct BiriktiriyorumApp: App {
                     .environmentObject(planVM)
                     .environmentObject(transactionVM)
                     .environmentObject(categoryVM)
+                    .environmentObject(accountVM)
                     .environmentObject(authViewModel)
                     .onReceive(planVM.$currentPlanId) { id in
                         transactionVM.setPlan(id)

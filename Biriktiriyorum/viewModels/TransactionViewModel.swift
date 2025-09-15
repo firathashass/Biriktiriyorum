@@ -10,8 +10,10 @@ import Foundation
 class TransactionViewModel: ObservableObject {
     @Published var transactions: [Transaction] = []
     @Published private(set) var planId: UUID? = nil
+    var accountViewModel: AccountViewModel
     
-    init(planId: UUID? = nil) {
+    init(accountViewModel: AccountViewModel, planId: UUID? = nil) {
+        self.accountViewModel = accountViewModel
         self.planId = planId
         print("TransactionViewModel initialized")
         loadTransactions()
@@ -32,6 +34,8 @@ class TransactionViewModel: ObservableObject {
         print("Adding transaction: \(transaction)")
         transactions.append(transaction)
         print("Total transactions: \(transactions.count)")
+        // Hesap bakiyesini azalt/çoğalt (harcama varsayımıyla azaltıyoruz)
+        accountViewModel.adjustBalance(for: transaction.accountID, by: -transaction.amount)
         
         // Save in background to avoid blocking UI
         DispatchQueue.global(qos: .utility).async {
@@ -42,8 +46,18 @@ class TransactionViewModel: ObservableObject {
     func update(transaction: Transaction) {
         print("Updating transaction: \(transaction)")
         if let index = transactions.firstIndex(where: { $0.id == transaction.id }) {
+            let old = transactions[index]
             transactions[index] = transaction
             print("Successfully updated transaction at index \(index)")
+            // Bakiye farkını yansıt (hesap değişmiş olabilir)
+            if old.accountID == transaction.accountID {
+                let delta = old.amount - transaction.amount
+                if delta != 0 { accountViewModel.adjustBalance(for: transaction.accountID, by: delta) }
+            } else {
+                // Eski hesaba iade, yeni hesaptan düş
+                accountViewModel.adjustBalance(for: old.accountID, by: old.amount)
+                accountViewModel.adjustBalance(for: transaction.accountID, by: -transaction.amount)
+            }
             
             // Save in background to avoid blocking UI
             DispatchQueue.global(qos: .utility).async {
@@ -58,6 +72,8 @@ class TransactionViewModel: ObservableObject {
         print("Deleting transaction: \(transaction)")
         transactions.removeAll { $0.id == transaction.id }
         print("Total transactions after deletion: \(transactions.count)")
+        // Silindiğinde bakiyeyi geri iade et
+        accountViewModel.adjustBalance(for: transaction.accountID, by: transaction.amount)
         
         // Save in background to avoid blocking UI
         DispatchQueue.global(qos: .utility).async {
@@ -67,8 +83,11 @@ class TransactionViewModel: ObservableObject {
     
     func delete(at offsets: IndexSet) {
         print("Deleting transactions at offsets: \(offsets)")
+        let removed = offsets.map { transactions[$0] }
         transactions.remove(atOffsets: offsets)
         print("Total transactions after deletion: \(transactions.count)")
+        // Geri iade
+        removed.forEach { accountViewModel.adjustBalance(for: $0.accountID, by: $0.amount) }
         
         // Save in background to avoid blocking UI
         DispatchQueue.global(qos: .utility).async {

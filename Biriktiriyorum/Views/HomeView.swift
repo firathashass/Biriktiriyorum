@@ -252,5 +252,5 @@ struct CategoryBudgetRow: View {
 #Preview {
     HomeView()
         .environmentObject(CategoryViewModel())
-        .environmentObject(TransactionViewModel())
+        .environmentObject(TransactionViewModel(accountViewModel: AccountViewModel()))
 }

@@ -343,5 +343,5 @@ enum TransactionFilter: CaseIterable {
 
 #Preview {
     HistoryView()
-        .environmentObject(TransactionViewModel())
+        .environmentObject(TransactionViewModel(accountViewModel: AccountViewModel()))
 }

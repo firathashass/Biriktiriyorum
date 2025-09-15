@@ -9,7 +9,7 @@ import SwiftUI
 import Charts
 
 struct ReflectionView: View {
-    @StateObject private var transactionViewModel = TransactionViewModel()
+    @EnvironmentObject var transactionVM: TransactionViewModel
     @State private var selectedPeriod: TimePeriod = .thisWeek
     
     private let emotionColors: [EmotionTag: Color] = [
@@ -72,13 +72,13 @@ struct ReflectionView: View {
             HStack {
                 StatCard(
                     title: "Total Spent",
-                    value: String(format: "%.2f ₺", transactionViewModel.getTotalSpentForPeriod(selectedPeriod)),
+                    value: String(format: "%.2f ₺", transactionVM.getTotalSpentForPeriod(selectedPeriod)),
                     color: .blue
                 )
                 
                 StatCard(
                     title: "Transactions",
-                    value: "\(transactionViewModel.getTransactionCountForPeriod(selectedPeriod))",
+                    value: "\(transactionVM.getTransactionCountForPeriod(selectedPeriod))",
                     color: .green
                 )
             }
@@ -87,13 +87,13 @@ struct ReflectionView: View {
                 HStack {
                     StatCard(
                         title: "This Week",
-                        value: String(format: "%.2f ₺", transactionViewModel.getWeeklyTotal()),
+                        value: String(format: "%.2f ₺", transactionVM.getWeeklyTotal()),
                         color: .purple
                     )
                     
                     StatCard(
                         title: "This Week",
-                        value: "\(transactionViewModel.getWeeklyStats().values.reduce(0) { $0 + $1.count })",
+                        value: "\(transactionVM.getWeeklyStats().values.reduce(0) { $0 + $1.count })",
                         color: .orange
                     )
                 }
@@ -107,7 +107,7 @@ struct ReflectionView: View {
                 .font(.title2)
                 .fontWeight(.bold)
             
-            let stats = transactionViewModel.getStatsForPeriod(selectedPeriod)
+            let stats = transactionVM.getStatsForPeriod(selectedPeriod)
             
             if stats.isEmpty {
                 Text("No transactions in \(selectedPeriod.displayText.lowercased()). Start tracking your spending to see emotional patterns!")
@@ -168,7 +168,7 @@ struct ReflectionView: View {
                 .font(.title2)
                 .fontWeight(.bold)
             
-            let periodStats = transactionViewModel.getStatsForPeriod(selectedPeriod)
+            let periodStats = transactionVM.getStatsForPeriod(selectedPeriod)
             
             if periodStats.values.allSatisfy({ $0.count == 0 }) {
                 Text("No transactions in \(selectedPeriod.displayText.lowercased()) yet.")
@@ -255,5 +255,10 @@ struct PeriodButton: View {
 }
 
 #Preview {
-    ReflectionView()
+    let accountVM = AccountViewModel()
+    let transactionVM = TransactionViewModel(accountViewModel: accountVM)
+    return NavigationView {
+        ReflectionView()
+            .environmentObject(transactionVM)
+    }
 }

@@ -10,6 +10,7 @@ import SwiftUI
 struct MainTabView: View {
     @EnvironmentObject var categoryVM: CategoryViewModel
     @EnvironmentObject var transactionVM: TransactionViewModel
+    @EnvironmentObject var accountVM: AccountViewModel
     @EnvironmentObject var authViewModel: UserAuthViewModel
     @EnvironmentObject var planVM: PlanViewModel
     
@@ -27,6 +28,7 @@ struct MainTabView: View {
             AddTransactionView()
                 .environmentObject(categoryVM)
                 .environmentObject(transactionVM)
+                .environmentObject(accountVM)
                 .tabItem {
                     Label("Add", systemImage: "plus.circle")
                 }
@@ -48,6 +50,14 @@ struct MainTabView: View {
                 .tabItem {
                     Label("History", systemImage: "clock.fill")
                 }
+
+            NavigationView {
+                AccountListView()
+                    .environmentObject(accountVM)
+            }
+            .tabItem {
+                Label("Accounts", systemImage: "creditcard")
+            }
 
             ReflectionView()
                 .environmentObject(transactionVM)
