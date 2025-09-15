@@ -9,10 +9,23 @@ import Foundation
 
 class TransactionViewModel: ObservableObject {
     @Published var transactions: [Transaction] = []
+    @Published private(set) var planId: UUID? = nil
     
-    init() {
+    init(planId: UUID? = nil) {
+        self.planId = planId
         print("TransactionViewModel initialized")
         loadTransactions()
+    }
+    
+    func setPlan(_ planId: UUID?) {
+        self.planId = planId
+        loadTransactions()
+    }
+
+    func resetCurrentPlan() {
+        transactions = []
+        UserDefaults.standard.removeObject(forKey: transactionsKey())
+        objectWillChange.send()
     }
     
     func add(transaction: Transaction) {
@@ -66,7 +79,7 @@ class TransactionViewModel: ObservableObject {
     private func saveTransactions() {
         print("Saving transactions to UserDefaults...")
         if let encoded = try? JSONEncoder().encode(transactions) {
-            UserDefaults.standard.set(encoded, forKey: "SavedTransactions")
+            UserDefaults.standard.set(encoded, forKey: transactionsKey())
             // Remove synchronize() - it's blocking the UI
             print("Successfully saved \(transactions.count) transactions")
         } else {
@@ -76,13 +89,18 @@ class TransactionViewModel: ObservableObject {
     
     private func loadTransactions() {
         print("Loading transactions from UserDefaults...")
-        if let data = UserDefaults.standard.data(forKey: "SavedTransactions"),
+        if let data = UserDefaults.standard.data(forKey: transactionsKey()),
            let decoded = try? JSONDecoder().decode([Transaction].self, from: data) {
             transactions = decoded
             print("Successfully loaded \(transactions.count) transactions")
         } else {
             print("No saved transactions found")
         }
+    }
+    
+    private func transactionsKey() -> String {
+        if let planId = planId { return "SavedTransactions_\(planId.uuidString)" }
+        return "SavedTransactions"
     }
     
     // MARK: - Reflection Statistics

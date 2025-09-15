@@ -10,14 +10,16 @@ import Foundation
 class CategoryViewModel: ObservableObject {
     @Published var categories: [Category] = []
     @Published var customGroups: [String] = []
+    @Published private(set) var planId: UUID? = nil
     
     // Predefined groups
     static let defaultGroups = ["Essentials", "Lifestyle", "Savings"]
     
-    init() {
+    init(planId: UUID? = nil) {
+        self.planId = planId
         loadCategories()
         loadCustomGroups()
-        if categories.isEmpty {
+        if categories.isEmpty && planId == nil {
             // Initialize with default grouped categories if none exist
             categories = [
                 // Essentials
@@ -35,6 +37,21 @@ class CategoryViewModel: ObservableObject {
             ]
             saveCategories()
         }
+    }
+    
+    func setPlan(_ planId: UUID?) {
+        self.planId = planId
+        loadCategories()
+        loadCustomGroups()
+    }
+
+    func resetCurrentPlan() {
+        categories = []
+        customGroups = []
+        // Overwrite storage for this plan (or global if nil)
+        UserDefaults.standard.removeObject(forKey: categoriesKey())
+        UserDefaults.standard.removeObject(forKey: customGroupsKey())
+        objectWillChange.send()
     }
     
     func addCategory(name: String, group: String = "Other", goalAmount: Double? = nil, monthlyBillAmount: Double? = nil) {
@@ -213,12 +230,12 @@ class CategoryViewModel: ObservableObject {
     
     private func saveCategories() {
         if let encoded = try? JSONEncoder().encode(categories) {
-            UserDefaults.standard.set(encoded, forKey: "SavedCategories")
+            UserDefaults.standard.set(encoded, forKey: categoriesKey())
         }
     }
     
     private func loadCategories() {
-        if let data = UserDefaults.standard.data(forKey: "SavedCategories"),
+        if let data = UserDefaults.standard.data(forKey: categoriesKey()),
            let decoded = try? JSONDecoder().decode([Category].self, from: data) {
             categories = decoded
         }
@@ -226,14 +243,25 @@ class CategoryViewModel: ObservableObject {
     
     private func saveCustomGroups() {
         if let encoded = try? JSONEncoder().encode(customGroups) {
-            UserDefaults.standard.set(encoded, forKey: "SavedCustomGroups")
+            UserDefaults.standard.set(encoded, forKey: customGroupsKey())
         }
     }
     
     private func loadCustomGroups() {
-        if let data = UserDefaults.standard.data(forKey: "SavedCustomGroups"),
+        if let data = UserDefaults.standard.data(forKey: customGroupsKey()),
            let decoded = try? JSONDecoder().decode([String].self, from: data) {
             customGroups = decoded
         }
+    }
+
+    // MARK: - Keys
+    private func categoriesKey() -> String {
+        if let planId = planId { return "SavedCategories_\(planId.uuidString)" }
+        return "SavedCategories"
+    }
+    
+    private func customGroupsKey() -> String {
+        if let planId = planId { return "SavedCustomGroups_\(planId.uuidString)" }
+        return "SavedCustomGroups"
     }
 }
